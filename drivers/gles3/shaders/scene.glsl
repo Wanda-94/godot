@@ -58,6 +58,14 @@ SECOND_REFLECTION_PROBE = false
 #endif
 #endif // MODE_UNSHADED
 
+// LJ Begin : we disable ADDITIVE LIGHT PASS when custom shade enable
+#ifndef CUSTOM_SHADE_MODE
+	#ifdef USE_ADDITIVE_LIGHTING
+		#undef USE_ADDITIVE_LIGHTING
+	#endif
+#endif // CUSTOM_SHADE_MODE
+// LJ End
+
 /*
 from RenderingServer:
 ARRAY_VERTEX = 0, // RGB32F or RGBA16
@@ -626,9 +634,9 @@ in highp vec4 shadow_coord4;
 #endif
 
 #ifdef USE_RADIANCE_MAP
-
-#define RADIANCE_MAX_LOD 5.0
-
+// LJ Begin : MAX_LOD is 11 ok? change 5.0 -> 11.0
+#define RADIANCE_MAX_LOD 11.0
+// LJ End
 uniform samplerCube radiance_map; // texunit:-2
 
 #endif // USE_RADIANCE_MAP
@@ -1020,6 +1028,7 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 #ifdef LIGHT_ANISOTROPY_USED
 		vec3 B, vec3 T, float anisotropy,
 #endif
+		float ao,
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 
 #if defined(LIGHT_CODE_USED)
@@ -1184,6 +1193,7 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #ifdef LIGHT_ANISOTROPY_USED
 		vec3 binormal, vec3 tangent, float anisotropy,
 #endif
+		float ao,
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
@@ -1211,6 +1221,7 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
 #endif
+			ao,
 			diffuse_light,
 			specular_light);
 }
@@ -1230,6 +1241,7 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #ifdef LIGHT_ANISOTROPY_USED
 		vec3 binormal, vec3 tangent, float anisotropy,
 #endif
+		float ao,
 		inout vec3 diffuse_light,
 		inout vec3 specular_light) {
 
@@ -1267,6 +1279,7 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
 #endif
+			ao,
 			diffuse_light, specular_light);
 }
 #endif // !defined(DISABLE_LIGHT_SPOT) || defined(ADDITIVE_SPOT)
@@ -1611,6 +1624,10 @@ void main() {
 	float ndotv = clamp(dot(normal, view), 0.0, 1.0);
 	vec3 F = f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(1.0 - ndotv, 5.0);
 
+// LJ Begin : we disable all external light compute when custom shade enable
+#ifndef CUSTOM_SHADE_MODE
+// LJ End
+
 #ifdef USE_RADIANCE_MAP
 	if (scene_data.use_reflection_cubemap) {
 #ifdef LIGHT_ANISOTROPY_USED
@@ -1659,6 +1676,10 @@ void main() {
 	}
 #endif // DISABLE_REFLECTION_PROBE
 
+// LJ Begin : we disable all external light compute when custom shade enable
+#endif // CUSTOM_SHADE_MODE
+// LJ End
+
 #if defined(CUSTOM_RADIANCE_USED)
 	specular_light = mix(specular_light, custom_radiance.rgb, custom_radiance.a);
 #endif // CUSTOM_RADIANCE_USED
@@ -1671,11 +1692,20 @@ void main() {
 #ifdef USE_RADIANCE_MAP
 		if (scene_data.use_ambient_cubemap) {
 			vec3 ambient_dir = scene_data.radiance_inverse_xform * normal;
+
+// LJ Begin : we disable all external light compute when custom shade enable
+#ifndef CUSTOM_SHADE_MODE
+			vec3 cubemap_ambient = textureLod(radiance_map, ambient_dir, RADIANCE_MAX_LOD * 0.5).rgb;
+#else
 			vec3 cubemap_ambient = textureLod(radiance_map, ambient_dir, RADIANCE_MAX_LOD).rgb;
+#endif // CUSTOM_SHADE_MODE
+// LJ End
+
 			cubemap_ambient = srgb_to_linear(cubemap_ambient);
 			ambient_light = mix(ambient_light, cubemap_ambient * scene_data.ambient_light_color_energy.a, scene_data.ambient_color_sky_mix);
 		}
 #endif // USE_RADIANCE_MAP
+
 
 #ifndef DISABLE_REFLECTION_PROBE
 		if (ambient_accum.a > 0.0) {
@@ -1688,6 +1718,10 @@ void main() {
 #if defined(CUSTOM_IRRADIANCE_USED)
 	ambient_light = mix(ambient_light, custom_irradiance.rgb, custom_irradiance.a);
 #endif // CUSTOM_IRRADIANCE_USED
+
+// LJ Begin : we disable all external light compute when custom shade enable
+#ifndef CUSTOM_SHADE_MODE
+// LJ End
 
 #ifndef DISABLE_LIGHTMAP
 #ifdef USE_LIGHTMAP_CAPTURE
@@ -1744,6 +1778,10 @@ void main() {
 #endif // USE_LIGHTMAP_CAPTURE
 #endif // !DISABLE_LIGHTMAP
 
+// LJ Begin : we disable all external light compute when custom shade enable
+#endif // CUSTOM_SHADE_MODE
+// LJ End
+
 	{
 #if defined(AMBIENT_LIGHT_DISABLED)
 		ambient_light = vec3(0.0, 0.0, 0.0);
@@ -1753,15 +1791,20 @@ void main() {
 #endif // AMBIENT_LIGHT_DISABLED
 	}
 
+	// LJ Begin : move ao map out of define
+	/*
 	// convert ao to direct light ao
 	ao = mix(1.0, ao, ao_light_affect);
-
+	*/
+	// LJ End
 	{
 #if defined(DIFFUSE_TOON)
 		//simplify for toon, as
 		specular_light *= specular * metallic * albedo * 2.0;
 #else
-
+// LJ Begin : we disable all external light compute when custom shade enable
+#ifndef CUSTOM_SHADE_MODE
+// LJ End
 		// scales the specular reflections, needs to be be computed before lighting happens,
 		// but after environment, GI, and reflection probes are added
 		// Environment brdf approximation (Lazarov 2013)
@@ -1774,9 +1817,17 @@ void main() {
 		float a004 = min(r.x * r.x, exp2(-9.28 * ndotv)) * r.x + r.y;
 		vec2 env = vec2(-1.04, 1.04) * a004 + r.zw;
 		specular_light *= env.x * f0 + env.y * clamp(50.0 * f0.g, metallic, 1.0);
+// LJ Begin : we disable all external light compute when custom shade enable
+#endif // CUSTOM_SHADE_MODE
+// LJ End
 #endif
 	}
 
+// LJ Begin : we disable all external light compute when custom shade enable
+	// convert ao to direct light ao
+	ao = mix(1.0, ao, ao_light_affect);
+// LJ End
+	
 #ifndef DISABLE_LIGHT_DIRECTIONAL
 	for (uint i = uint(0); i < scene_data.directional_light_count; i++) {
 #if defined(USE_LIGHTMAP) && !defined(DISABLE_LIGHTMAP)
@@ -1798,6 +1849,7 @@ void main() {
 				binormal,
 				tangent, anisotropy,
 #endif
+				ao,
 				diffuse_light,
 				specular_light);
 	}
@@ -1827,6 +1879,7 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 				binormal, tangent, anisotropy,
 #endif
+				ao,
 				diffuse_light, specular_light);
 	}
 #endif // !DISABLE_LIGHT_OMNI
@@ -1856,6 +1909,7 @@ void main() {
 				tangent,
 				binormal, anisotropy,
 #endif
+				ao,
 				diffuse_light, specular_light);
 	}
 #endif // !DISABLE_LIGHT_SPOT
@@ -1928,12 +1982,14 @@ void main() {
 #endif // !FOG_DISABLED
 
 	// Tonemap before writing as we are writing to an sRGB framebuffer
-	frag_color.rgb *= exposure;
+// LJ Begin : change default exposure
+	//frag_color.rgb *= exposure;
+	frag_color.rgb = vec3(1.0) - exp(-1.0 * frag_color.rgb * exposure);
+// LJ End
 #ifdef APPLY_TONEMAPPING
 	frag_color.rgb = apply_tonemapping(frag_color.rgb, white);
 #endif
 	frag_color.rgb = linear_to_srgb(frag_color.rgb);
-
 #else // !BASE_PASS
 	frag_color = vec4(0.0, 0.0, 0.0, alpha);
 #endif // !BASE_PASS
@@ -2070,6 +2126,7 @@ void main() {
 			binormal,
 			tangent, anisotropy,
 #endif
+			ao,
 			diffuse_light,
 			specular_light);
 #endif // !defined(ADDITIVE_OMNI) && !defined(ADDITIVE_SPOT)
@@ -2095,6 +2152,7 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
 #endif
+			ao,
 			diffuse_light, specular_light);
 #endif // ADDITIVE_OMNI
 
@@ -2119,6 +2177,7 @@ void main() {
 			tangent,
 			binormal, anisotropy,
 #endif
+			ao,
 			diffuse_light, specular_light);
 
 #endif // ADDITIVE_SPOT
@@ -2139,7 +2198,10 @@ void main() {
 #endif // !FOG_DISABLED
 
 	// Tonemap before writing as we are writing to an sRGB framebuffer
-	additive_light_color *= exposure;
+// LJ Begin : change default exposure
+	//frag_color.rgb *= exposure;
+	additive_light_color = vec3(1.0) - exp(-1.0 * additive_light_color * exposure);
+// LJ End
 #ifdef APPLY_TONEMAPPING
 	additive_light_color = apply_tonemapping(additive_light_color, white);
 #endif
@@ -2147,6 +2209,7 @@ void main() {
 
 	frag_color.rgb += additive_light_color;
 #endif // USE_ADDITIVE_LIGHTING
+
 	frag_color.rgb *= scene_data.luminance_multiplier;
 
 #endif // !RENDER_MATERIAL

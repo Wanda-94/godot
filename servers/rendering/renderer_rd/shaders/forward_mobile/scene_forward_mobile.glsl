@@ -1666,6 +1666,8 @@ void main() {
 #ifdef USE_SOFT_SHADOW
 					directional_lights.data[i].size,
 #endif
+// WARNING !
+					ao,
 					diffuse_light,
 					specular_light);
 		}
@@ -1711,6 +1713,7 @@ void main() {
 					tangent,
 					binormal, anisotropy,
 #endif
+					ao,
 					diffuse_light, specular_light);
 		}
 	} //omni lights
@@ -1756,6 +1759,7 @@ void main() {
 					tangent,
 					binormal, anisotropy,
 #endif
+					ao,
 					diffuse_light, specular_light);
 		}
 	} //spot lights

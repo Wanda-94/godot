@@ -203,7 +203,9 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[RS::SHADER_SPATIAL].functions["light"].built_ins["SPECULAR_LIGHT"] = ShaderLanguage::TYPE_VEC3;
 	shader_modes[RS::SHADER_SPATIAL].functions["light"].built_ins["OUTPUT_IS_SRGB"] = constt(ShaderLanguage::TYPE_BOOL);
 	shader_modes[RS::SHADER_SPATIAL].functions["light"].built_ins["ALPHA"] = ShaderLanguage::TYPE_FLOAT;
-
+	// LJ Begin : add AO
+	shader_modes[RS::SHADER_SPATIAL].functions["light"].built_ins["AO"] = constt(ShaderLanguage::TYPE_FLOAT);
+	// LJ End
 	shader_modes[RS::SHADER_SPATIAL].functions["light"].can_discard = true;
 	shader_modes[RS::SHADER_SPATIAL].functions["light"].main_function = true;
 
@@ -231,6 +233,9 @@ ShaderTypes::ShaderTypes() {
 		shader_modes[RS::SHADER_SPATIAL].modes.push_back({ PNAME("alpha_to_coverage_and_one") });
 		shader_modes[RS::SHADER_SPATIAL].modes.push_back({ PNAME("debug_shadow_splits") });
 		shader_modes[RS::SHADER_SPATIAL].modes.push_back({ PNAME("fog_disabled") });
+		// LJ Begin : add custom shading mode
+		shader_modes[RS::SHADER_SPATIAL].modes.push_back({ PNAME("custom_shade")});
+		// LJ End
 	}
 
 	/************ CANVAS ITEM **************************/

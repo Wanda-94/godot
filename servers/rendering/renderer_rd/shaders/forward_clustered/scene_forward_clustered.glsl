@@ -2088,6 +2088,7 @@ void fragment_shader(in SceneData scene_data) {
 					binormal,
 					tangent, anisotropy,
 #endif
+					ao,
 					diffuse_light,
 					specular_light);
 		}
@@ -2159,6 +2160,7 @@ void fragment_shader(in SceneData scene_data) {
 #ifdef LIGHT_ANISOTROPY_USED
 						tangent, binormal, anisotropy,
 #endif
+						ao,
 						diffuse_light, specular_light);
 			}
 		}
@@ -2232,6 +2234,7 @@ void fragment_shader(in SceneData scene_data) {
 						tangent,
 						binormal, anisotropy,
 #endif
+						ao,
 						diffuse_light, specular_light);
 			}
 		}

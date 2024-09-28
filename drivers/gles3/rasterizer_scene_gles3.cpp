@@ -588,7 +588,10 @@ void RasterizerSceneGLES3::_update_dirty_skys() {
 
 	while (sky) {
 		if (sky->radiance == 0) {
-			sky->mipmap_count = Image::get_image_required_mipmaps(sky->radiance_size, sky->radiance_size, Image::FORMAT_RGBA8) - 1;
+			// LJ Begin : why -1 ? you should use +1 to get a full mip level
+			sky->mipmap_count = Image::get_image_required_mipmaps(sky->radiance_size, sky->radiance_size, Image::FORMAT_RGBA8) + 1;
+			//sky->mipmap_count = Image::get_image_required_mipmaps(sky->radiance_size, sky->radiance_size, Image::FORMAT_RGBA8) - 1;
+			// LJ End
 			// Left uninitialized, will attach a texture at render time
 			glGenFramebuffers(1, &sky->radiance_framebuffer);
 			sky->radiance = _init_radiance_texture(sky->radiance_size, sky->mipmap_count, "Sky radiance texture");
